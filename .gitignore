@@ -1,0 +1,39 @@
+# Build outputs
+build/
+app/build/
+.gradle/
+*.apk
+*.aab
+
+# CMake / NDK build cache
+app/.cxx/
+
+# Android local config
+local.properties
+*.keystore
+
+# JNI native libraries
+app/src/main/jniLibs/
+
+# AI models (demasiado grandes para git)
+*.bin
+*.gguf
+*.onnx
+*.onnx.json
+models/
+
+# Logs y capturas de diagnóstico
+*.txt
+*.log
+*.png
+
+# IDE y herramientas locales
+.idea/
+*.iml
+.DS_Store
+.vscode/
+.claude/
+
+# Scripts de instalación local
+install-models.bat
+install-models.ps1

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- J simplificada en verde terminal -->
+    <path
+        android:fillColor="#39D353"
+        android:pathData="M58,24 L66,24 L66,72 Q66,84 54,84 Q42,84 42,72 L42,66 L50,66 L50,72 Q50,76 54,76 Q58,76 58,72 Z"/>
+</vector>

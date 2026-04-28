@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="july_background">#0A0E0A</color>
+    <color name="july_surface">#0F140F</color>
+    <color name="july_accent">#39D353</color>
+</resources>
