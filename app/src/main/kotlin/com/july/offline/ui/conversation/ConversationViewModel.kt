@@ -89,9 +89,11 @@ class ConversationViewModel @Inject constructor(
             } ?: emptyList()
             mapToUiState(conversationState, healthState, messages, wakeWordEnabled)
         },
+        orchestrator.continuousMode,
         vadSnapshot
-    ) { base, snap ->
+    ) { base, isContinuous, snap ->
         base.copy(
+            isContinuousMode  = isContinuous,
             vadVoiceSeconds   = snap.voiceSeconds,
             vadSilenceSeconds = snap.silenceSeconds,
             vadEnergyLevel    = snap.energy
@@ -104,6 +106,7 @@ class ConversationViewModel @Inject constructor(
 
     fun onMicPressed() = orchestrator.startConversationCycle()
     fun onCancelPressed() = orchestrator.cancelCurrentCycle()
+    fun onContinuousModeToggled() = orchestrator.toggleContinuousMode()
     fun onPermissionDenied() {}
     fun onEmergencyButtonPressed() = emergencyCoordinator.activateByButton()
 
@@ -197,7 +200,7 @@ class ConversationViewModel @Inject constructor(
             if (!health.sttReady) add("whisper-small.bin")
             if (!health.llmReady) add("Llama-3.2-1B-Instruct-Q4_K_M.gguf")
         }
-        return "Modelos no encontrados: ${missing.joinToString(", ")} — ejecuta install-models.bat"
+        return "Modelos no encontrados: ${missing.joinToString(", ")} — ingresa al menu y presiona descargar modelos"
     }
 
     private fun mapErrorToUserMessage(error: AppError): String = when (error) {

@@ -13,7 +13,7 @@ class SurvivalContentSeeder @Inject constructor(private val dao: SurvivalContent
 
     suspend fun seedIfEmpty() = withContext(Dispatchers.IO) {
         if (dao.countSeeded() > 0) return@withContext
-        seedWater(); seedFire(); seedFood(); seedShelter(); seedFirstAid(); seedSecurity()
+        seedWater(); seedFire(); seedFood(); seedShelter(); seedFirstAid(); seedSecurity(); seedMentalResilience()
     }
 
     // ── helpers ────────────────────────────────────────────────────────────
@@ -209,6 +209,56 @@ class SurvivalContentSeeder @Inject constructor(private val dao: SurvivalContent
             s(4, "Fracture immobilization", "Immobilize joint above and below with sticks and bandage. Don't try to align bone.", warning = "Don't move patient with possible spinal injury."),
             s(5, "Hypothermia", "Dry and layer insulation. Warm torso first, not extremities. Give warm liquids and sugar if conscious."),
             s(6, "Bites and venom", "Keep area below heart level. Immobilize limb. Don't suck or cut. Scrape stinger — don't pinch.", warning = "Never suck venom or make incisions.")
+        ))
+    }
+
+    // ── MENTAL RESILIENCE ──────────────────────────────────────────────────
+
+    private suspend fun seedMentalResilience() {
+        insert("MENTAL_RESILIENCE", "es", "Fortaleza mental y voluntad de sobrevivir",
+            "Cómo manejar el pánico, mantener la esperanza y preservar la voluntad de vivir", listOf(
+            s(1, "Acepta la situación sin dejarte vencer",
+                "El primer instinto es negar o entrar en pánico. Para. Respira. Dite en voz alta: estoy vivo, puedo pensar, puedo actuar. Aceptar la realidad sin rendirte es el primer paso para sobrevivir.",
+                tts = "Para. Respira. Dite en voz alta: estoy vivo, puedo pensar, puedo actuar."),
+            s(2, "Técnica 4-7-8 para el pánico",
+                "Cuando el miedo te paraliza: inhala 4 segundos, sostén el aire 7 segundos, exhala lentamente 8 segundos. Repite 4 veces. Esto activa el sistema nervioso parasimpático y reduce el pánico en minutos.",
+                tts = "Inhala 4 segundos, sostén 7, exhala 8. Repite cuatro veces. El pánico cede."),
+            s(3, "Divide el tiempo en victorias pequeñas",
+                "No pienses en cuántos días pueden pasar. Solo piensa en la siguiente hora. Fíjate una tarea: conseguir agua, mejorar el refugio, hacer fuego. Cada tarea completada es una victoria real que alimenta la esperanza.",
+                tts = "Solo piensa en la siguiente hora. Una tarea a la vez. Cada logro es una victoria."),
+            s(4, "Tu razón para vivir es tu mejor herramienta",
+                "Piensa en las personas que te esperan: familia, amigos, alguien que te necesita. Visualiza el momento de volver con ellos. Ese pensamiento tiene más poder de supervivencia que cualquier técnica.",
+                warning = "Cuando sientas que ya no puedes, recuerda ese rostro. Eso es suficiente razón.",
+                tts = "Piensa en quien te espera. Visualiza volver con ellos. Ese pensamiento te mantiene vivo."),
+            s(5, "Mantén una rutina diaria",
+                "Sin estructura, la mente colapsa. Establece horarios fijos: despertar, buscar agua, comer, mejorar el campamento, señalizar, dormir. La rutina crea sensación de control cuando todo parece caótico.",
+                tts = "Crea horarios fijos para cada actividad. La rutina da control cuando todo parece caótico."),
+            s(6, "Habla en voz alta y cuenta tus logros",
+                "Nombra en voz alta lo que has conseguido hoy: tengo agua, tengo refugio, estoy más cerca de ser encontrado. Escuchar tu propia voz con hechos concretos combate el pensamiento negativo.",
+                tts = "Di en voz alta lo que lograste hoy. Tengo agua. Tengo refugio. Sigo adelante."),
+            s(7, "Reconoce las señales de alarma",
+                "Pensamientos de rendición, sensación de que nada importa, inmovilidad sin razón física: son señales de que tu mente necesita ayuda igual que tu cuerpo. Cuando aparezcan, levántate, muévete, y ejecuta cualquier tarea pequeña de inmediato.",
+                warning = "Rendirse mentalmente ocurre antes que rendirse físicamente. Actúa al primer síntoma.",
+                tts = "Si sientes que nada importa, levántate y haz algo, lo que sea. El movimiento rompe la espiral.")
+        ))
+        insert("MENTAL_RESILIENCE", "en", "Mental resilience and the will to survive",
+            "Managing panic, maintaining hope and preserving the will to live", listOf(
+            s(1, "Accept the situation without surrendering",
+                "The first instinct is denial or panic. Stop. Breathe. Say aloud: I am alive, I can think, I can act. Accepting reality without giving up is the first step to survival."),
+            s(2, "4-7-8 breathing for panic",
+                "When fear paralyzes you: inhale 4 seconds, hold 7 seconds, exhale slowly 8 seconds. Repeat 4 times. This activates the parasympathetic nervous system and reduces panic within minutes."),
+            s(3, "Break time into small wins",
+                "Don't think about how many days may pass. Only think about the next hour. Set one task: find water, improve shelter, make fire. Each completed task is a real victory that feeds hope."),
+            s(4, "Your reason to live is your best tool",
+                "Think of people waiting for you: family, friends, someone who needs you. Visualize the moment of returning to them. That thought has more survival power than any technique.",
+                warning = "When you feel you can't go on, remember that face. That is enough reason."),
+            s(5, "Keep a daily routine",
+                "Without structure the mind collapses. Set fixed schedules: wake up, find water, eat, improve camp, signal, sleep. Routine creates a sense of control when everything feels chaotic."),
+            s(6, "Speak aloud and count your achievements",
+                "Name aloud what you accomplished today: I have water, I have shelter, I am closer to being found. Hearing your own voice with concrete facts fights negative thinking."),
+            s(7, "Recognize warning signs",
+                "Thoughts of giving up, feeling nothing matters, stillness with no physical reason: these signal your mind needs help as much as your body. When they appear, stand up, move, and execute any small task immediately.",
+                warning = "Mental surrender comes before physical surrender. Act at the first symptom.")
         ))
     }
 

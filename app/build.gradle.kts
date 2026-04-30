@@ -12,10 +12,10 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.july.offline"
+        applicationId = "com.July.offline"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
+        versionCode = 5
         versionName = "1.0.0"
         testInstrumentationRunner = "com.july.offline.HiltTestRunner"
         ndk {

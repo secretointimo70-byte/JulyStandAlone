@@ -19,6 +19,7 @@ object CategoryValidation {
         SurvivalCategory.SHELTER  -> shelterConfig()
         SurvivalCategory.FIRST_AID -> firstAidConfig()
         SurvivalCategory.SECURITY -> securityConfig()
+        SurvivalCategory.MENTAL_RESILIENCE -> mentalResilienceConfig()
     }
 
     // ── AGUA ─────────────────────────────────────────────────────────────────
@@ -365,6 +366,60 @@ object CategoryValidation {
                     type     = ValidationResult.Type.PARTIAL,
                     bannerEs = "⚠ Amenaza activa con grupo: coordinen. Una persona vigila, el resto se mueve.",
                     bannerEn = "⚠ Active threat with group: coordinate. One person watches, rest moves."
+                )
+                else -> ValidationResult(ValidationResult.Type.POSITIVE)
+            }
+        }
+    )
+
+    // ── FORTALEZA MENTAL ──────────────────────────────────────────────────────
+
+    private fun mentalResilienceConfig() = Config(
+        questions = listOf(
+            ValidationQuestion(
+                id = "mental_panic",
+                textEs = "¿Estás experimentando pánico, desesperación o pensamientos de rendirte?",
+                textEn = "Are you experiencing panic, despair, or thoughts of giving up?"
+            ),
+            ValidationQuestion(
+                id = "mental_alone",
+                textEs = "¿Estás completamente solo/a sin nadie con quien hablar?",
+                textEn = "Are you completely alone with no one to talk to?"
+            )
+        ),
+        evaluate = { answers ->
+            val hasPanic   = answers["mental_panic"] == ValidationAnswer.YES
+            val isAlone    = answers["mental_alone"] == ValidationAnswer.YES
+            val anySkip    = answers.values.any { it == ValidationAnswer.SKIP }
+            when {
+                anySkip -> ValidationResult(
+                    type     = ValidationResult.Type.INCOMPLETE,
+                    bannerEs = "Sigue los pasos. Tu mente es tu herramienta más importante.",
+                    bannerEn = "Follow the steps. Your mind is your most important tool."
+                )
+                hasPanic && isAlone -> ValidationResult(
+                    type     = ValidationResult.Type.NEGATIVE,
+                    bannerEs = "Estás en un momento difícil. No estás solo/a — July está contigo.",
+                    bannerEn = "You are in a tough moment. You are not alone — July is with you.",
+                    fallbackActionsEs = listOf(
+                        "Para ahora mismo. Respira: 4 segundos adentro, 7 retenido, 8 afuera. Repite.",
+                        "Di en voz alta tu nombre y un hecho positivo: estoy vivo, puedo actuar.",
+                        "Piensa en una persona que te espera. Visualiza su cara. Esa imagen es tu ancla.",
+                        "Hazte una sola pregunta: ¿qué es lo más pequeño que puedo hacer ahora mismo?",
+                        "La desesperación es temporal. El cuerpo aguanta más de lo que la mente cree."
+                    ),
+                    fallbackActionsEn = listOf(
+                        "Stop right now. Breathe: 4 in, hold 7, 8 out. Repeat.",
+                        "Say your name aloud and one positive fact: I am alive, I can act.",
+                        "Think of someone waiting for you. Visualize their face. That image is your anchor.",
+                        "Ask yourself one question: what is the smallest thing I can do right now?",
+                        "Despair is temporary. The body endures far more than the mind believes."
+                    )
+                )
+                hasPanic && !isAlone -> ValidationResult(
+                    type     = ValidationResult.Type.PARTIAL,
+                    bannerEs = "⚠ Estás en pánico pero no solo/a. Habla con tu grupo — compartir ayuda.",
+                    bannerEn = "⚠ You are panicking but not alone. Talk to your group — sharing helps."
                 )
                 else -> ValidationResult(ValidationResult.Type.POSITIVE)
             }

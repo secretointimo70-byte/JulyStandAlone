@@ -16,6 +16,9 @@ import com.july.offline.domain.port.LanguageModelEngine
 import com.july.offline.domain.port.SpeechToTextEngine
 import com.july.offline.domain.port.TextToSpeechEngine
 import com.july.offline.domain.state.ConversationStateHolder
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -53,6 +56,9 @@ class ConversationOrchestrator @Inject constructor(
 
     private val scope = CoroutineScope(SupervisorJob() + dispatchers.main)
     private var activeJob: Job? = null
+
+    private val _continuousMode = MutableStateFlow(false)
+    val continuousMode: StateFlow<Boolean> = _continuousMode.asStateFlow()
 
     init {
         wakeWordCoordinator.onWakeWordDetected = { startConversationCycle() }
@@ -92,7 +98,13 @@ class ConversationOrchestrator @Inject constructor(
         activeJob?.let { emergencyCoordinator.registerActiveJob(it) }
     }
 
+    fun toggleContinuousMode() {
+        _continuousMode.value = !_continuousMode.value
+        logger.logInfo("Orchestrator", "Continuous mode: ${_continuousMode.value}")
+    }
+
     fun cancelCurrentCycle() {
+        _continuousMode.value = false
         activeJob?.cancel()
         activeJob = null
         audioCoordinator.cancel()
@@ -219,10 +231,13 @@ class ConversationOrchestrator @Inject constructor(
     }
 
     private fun resumeOrIdle() {
-        if (wakeWordCoordinator.isActive) {
-            wakeWordCoordinator.resumeAfterCycle()
-        } else {
-            stateHolder.resetToIdle()
+        when {
+            _continuousMode.value -> {
+                stateHolder.resetToIdle()
+                startConversationCycle()
+            }
+            wakeWordCoordinator.isActive -> wakeWordCoordinator.resumeAfterCycle()
+            else -> stateHolder.resetToIdle()
         }
     }
 
@@ -247,8 +262,8 @@ class ConversationOrchestrator @Inject constructor(
         return text
             .replace(Regex("<\\|[^|]*\\|>"), "")   // <|system|> <|end|> etc.
             .replace(Regex("<[^>]+>"), "")           // <cualquier tag HTML/XML>
-            .replace(Regex("[*#`_~]"), "")           // markdown: * # ` _ ~
-            .replace(Regex("^\\s*[-•>]\\s*", RegexOption.MULTILINE), "") // viñetas al inicio de línea
+            .replace(Regex("[*#`_~<>]"), "")         // markdown + símbolos < > sueltos
+            .replace(Regex("^\\s*[-•]\\s*", RegexOption.MULTILINE), "") // viñetas al inicio de línea
             .replace(Regex("\\s{2,}"), " ")          // espacios múltiples
             .trim()
     }

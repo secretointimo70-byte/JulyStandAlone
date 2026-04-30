@@ -173,6 +173,7 @@ private fun CategoryCard(
         SurvivalCategory.SHELTER   -> "⛺"
         SurvivalCategory.FIRST_AID -> "➕"
         SurvivalCategory.SECURITY  -> "🛡"
+        SurvivalCategory.MENTAL_RESILIENCE -> "🧠"
     }
     Surface(
         onClick  = onClick,

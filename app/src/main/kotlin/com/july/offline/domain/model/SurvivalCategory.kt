@@ -9,5 +9,6 @@ enum class SurvivalCategory(
     FOOD("Alimentación", "Food"),
     SHELTER("Refugio", "Shelter"),
     FIRST_AID("Primeros auxilios", "First aid"),
-    SECURITY("Seguridad", "Security")
+    SECURITY("Seguridad", "Security"),
+    MENTAL_RESILIENCE("Fortaleza mental", "Mental resilience")
 }

@@ -152,6 +152,35 @@ fun ConversationScreen(
 
             Spacer(Modifier.height(8.dp))
 
+            // Modo conversación continua
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "continuo",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (uiState.isContinuousMode) JulyPalette.Green400 else JulyPalette.TextTertiary
+                )
+                Spacer(Modifier.width(6.dp))
+                Switch(
+                    checked = uiState.isContinuousMode,
+                    onCheckedChange = { viewModel.onContinuousModeToggled() },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = JulyPalette.Green400,
+                        checkedTrackColor = JulyPalette.Green800,
+                        uncheckedThumbColor = JulyPalette.TextTertiary,
+                        uncheckedTrackColor = JulyPalette.Dark300
+                    ),
+                    modifier = Modifier
+                        .height(24.dp)
+                        .width(44.dp)
+                )
+            }
+
             // Controles con gestión de permiso
             PermissionHandler(
                 onPermissionGranted = { viewModel.onMicPressed() },

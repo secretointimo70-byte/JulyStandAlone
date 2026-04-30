@@ -13,6 +13,7 @@ data class ConversationUiState(
     val isMicButtonEnabled: Boolean = true,
     val messages: List<MessageUiModel> = emptyList(),
     val isWakeWordActive: Boolean = false,
+    val isContinuousMode: Boolean = false,
     val vadVoiceSeconds: Int = 0,
     val vadSilenceSeconds: Int = 0,
     val vadEnergyLevel: Int = 0
