@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.july.offline.security.ui.SecurityScreen
 import com.july.offline.ui.conversation.ConversationScreen
 import com.july.offline.ui.download.DownloadScreen
 import com.july.offline.ui.emergency.EmergencyScreen
@@ -42,8 +43,14 @@ fun JulyNavGraph(navController: NavHostController) {
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToDownloads = {
                     navController.navigate(JulyDestination.Downloads.route)
+                },
+                onNavigateToSecurity = {
+                    navController.navigate(JulyDestination.Security.route)
                 }
             )
+        }
+        composable(JulyDestination.Security.route) {
+            SecurityScreen(onNavigateBack = { navController.popBackStack() })
         }
         composable(JulyDestination.Downloads.route) {
             DownloadScreen(onNavigateBack = { navController.popBackStack() })

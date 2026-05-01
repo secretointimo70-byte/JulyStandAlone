@@ -7,4 +7,5 @@ sealed class JulyDestination(val route: String) {
     object Settings : JulyDestination("settings")
     object Emergency : JulyDestination("emergency")
     object Downloads : JulyDestination("downloads")
+    object Security : JulyDestination("security")
 }

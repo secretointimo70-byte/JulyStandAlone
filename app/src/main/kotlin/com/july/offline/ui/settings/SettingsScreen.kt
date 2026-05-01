@@ -23,6 +23,7 @@ import com.july.offline.ui.theme.*
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToDownloads: () -> Unit = {},
+    onNavigateToSecurity: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -167,6 +168,22 @@ fun SettingsScreen(
 
             // Idioma (informativo)
             JulySettingRow(label = "idioma", sublabel = settings.language) {}
+
+            JulyDivider()
+
+            // Auditoría de seguridad
+            JulySettingRow(
+                label = "auditoría de seguridad",
+                sublabel = "análisis de app · dispositivo · red local"
+            ) {
+                TextButton(onClick = onNavigateToSecurity) {
+                    Text(
+                        text = "abrir →",
+                        color = JulyPalette.Error.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            }
         }
     }
 }
