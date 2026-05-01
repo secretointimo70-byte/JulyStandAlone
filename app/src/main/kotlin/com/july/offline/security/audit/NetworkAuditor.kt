@@ -5,6 +5,7 @@ import com.july.offline.security.report.SecurityFinding
 import com.july.offline.security.report.SecurityFinding.Severity.*
 import com.july.offline.security.report.SecurityFinding.FindingCategory.*
 import com.july.offline.security.scanner.HostDiscovery
+import com.july.offline.security.scanner.HttpRedirectChecker
 import com.july.offline.security.scanner.PortScanner
 import com.july.offline.security.scanner.TlsAnalyzer
 import javax.inject.Inject
@@ -13,6 +14,7 @@ class NetworkAuditor @Inject constructor(
     private val hostDiscovery: HostDiscovery,
     private val portScanner: PortScanner,
     private val tlsAnalyzer: TlsAnalyzer,
+    private val httpRedirectChecker: HttpRedirectChecker,
     private val logger: DiagnosticsLogger
 ) {
 
@@ -62,30 +64,66 @@ class NetworkAuditor @Inject constructor(
             val openPorts = portScanner.scan(host.ip, PortScanner.COMMON_PORTS).filter { it.isOpen }
 
             openPorts.forEach { p ->
-                findings.add(SecurityFinding(
-                    id = "NET_PORT_${host.ip.replace(".", "_")}_${p.port}",
-                    severity = riskLevel(p.port), category = OPEN_PORT,
-                    title = "Puerto abierto: ${host.ip}:${p.port} (${p.serviceGuess ?: "desconocido"})",
-                    description = buildDesc(p),
-                    recommendation = portRecommendation(p.port),
-                    rawData = "host: ${host.ip}, port: ${p.port}, banner: ${p.banner ?: "none"}"
-                ))
-            }
+                when (p.port) {
+                    80, 8080 -> {
+                        // Verificar si HTTP redirige a HTTPS
+                        val redirect = httpRedirectChecker.check(host.ip, p.port)
+                        val serverBanner = redirect.serverBanner ?: p.banner
+                        val rawData = "host: ${host.ip}, port: ${p.port}" +
+                            (serverBanner?.let { ", server: $it" } ?: "") +
+                            (p.banner?.let { ", banner: ${it.take(60)}" } ?: "")
 
-            if (openPorts.any { it.port == 443 }) {
-                tlsAnalyzer.analyze(host.ip, 443).findings.forEach { f ->
-                    findings.add(f.copy(id = "${f.id}_${host.ip.replace(".", "_")}"))
+                        if (redirect.redirectsToHttps) {
+                            findings.add(SecurityFinding(
+                                id = "NET_HTTP_REDIRECT_${host.ip.replace(".", "_")}_${p.port}",
+                                severity = INFO, category = NETWORK,
+                                title = "HTTP redirige a HTTPS en ${host.ip}:${p.port}",
+                                description = "Correctamente configurado. Redirige a: ${redirect.redirectUrl}",
+                                recommendation = "Verificar que HTTPS tiene certificado válido.",
+                                rawData = rawData
+                            ))
+                        } else {
+                            findings.add(SecurityFinding(
+                                id = "NET_HTTP_NO_REDIRECT_${host.ip.replace(".", "_")}_${p.port}",
+                                severity = MEDIUM, category = NETWORK,
+                                title = "HTTP sin redirect a HTTPS en ${host.ip}:${p.port}",
+                                description = "El servidor responde en HTTP sin redirigir a HTTPS. " +
+                                    "El tráfico viaja sin cifrar." +
+                                    (serverBanner?.let { " Servidor: $it." } ?: ""),
+                                recommendation = "Configurar redirect 301 a HTTPS.",
+                                rawData = rawData
+                            ))
+                        }
+                    }
+                    else -> {
+                        val rawData = "host: ${host.ip}, port: ${p.port}" +
+                            (p.banner?.let { ", server: $it, banner: ${it.take(60)}" } ?: "")
+                        findings.add(SecurityFinding(
+                            id = "NET_PORT_${host.ip.replace(".", "_")}_${p.port}",
+                            severity = riskLevel(p.port), category = OPEN_PORT,
+                            title = "Puerto abierto: ${host.ip}:${p.port} (${p.serviceGuess ?: "desconocido"})",
+                            description = buildDesc(p),
+                            recommendation = portRecommendation(p.port),
+                            rawData = rawData
+                        ))
+                    }
                 }
             }
 
+            // Analizar TLS en puerto 443
+            if (openPorts.any { it.port == 443 }) {
+                findings.addAll(tlsAnalyzer.analyze(host.ip, 443).findings)
+            }
+
+            // Telnet es siempre crítico
             if (openPorts.any { it.port == 23 }) {
                 findings.add(SecurityFinding(
                     id = "NET_TELNET_${host.ip.replace(".", "_")}",
                     severity = CRITICAL, category = NETWORK,
                     title = "Telnet abierto en ${host.ip}",
                     description = "Telnet transmite credenciales en texto plano.",
-                    recommendation = "Deshabilitar Telnet. Migrar a SSH (puerto 22).",
-                    rawData = "telnet: ${host.ip}:23"
+                    recommendation = "Deshabilitar Telnet. Migrar a SSH.",
+                    rawData = "host: ${host.ip}, port: 23"
                 ))
             }
         }
@@ -99,7 +137,6 @@ class NetworkAuditor @Inject constructor(
         23 -> CRITICAL
         21, 3389, 5900, 6379, 9200, 27017 -> HIGH
         22, 3306, 5432, 1433 -> MEDIUM
-        80, 8080 -> LOW
         else -> INFO
     }
 
@@ -111,14 +148,14 @@ class NetworkAuditor @Inject constructor(
 
     private fun portRecommendation(port: Int): String = when (port) {
         21 -> "Migrar de FTP a SFTP. Deshabilitar FTP anónimo."
-        22 -> "Verificar autenticación por clave, no contraseña. Deshabilitar acceso root."
+        22 -> "Verificar autenticación por clave. Deshabilitar acceso root."
         23 -> "Deshabilitar Telnet inmediatamente. Usar SSH."
-        3306 -> "Restringir MySQL a 127.0.0.1. Cambiar contraseñas por defecto."
+        3306 -> "Restringir MySQL a 127.0.0.1."
         3389 -> "Limitar RDP a IPs específicas via firewall."
         5900 -> "Usar VNC solo sobre túnel SSH."
-        6379 -> "Configurar autenticación en Redis. Restringir bind a 127.0.0.1."
+        6379 -> "Configurar autenticación en Redis. Bind a 127.0.0.1."
         9200 -> "Habilitar autenticación en Elasticsearch."
-        27017 -> "Habilitar autenticación en MongoDB. Restringir bind a 127.0.0.1."
+        27017 -> "Habilitar autenticación en MongoDB. Bind a 127.0.0.1."
         else -> "Verificar si este servicio es necesario. Cerrar puertos no utilizados."
     }
 }

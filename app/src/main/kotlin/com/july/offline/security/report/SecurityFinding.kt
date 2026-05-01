@@ -7,7 +7,8 @@ data class SecurityFinding(
     val title: String,
     val description: String,
     val recommendation: String,
-    val rawData: String? = null
+    val rawData: String? = null,
+    val remediation: Remediation? = null
 ) {
     enum class Severity {
         CRITICAL,

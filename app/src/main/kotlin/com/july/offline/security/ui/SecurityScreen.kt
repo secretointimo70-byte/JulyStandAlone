@@ -1,9 +1,13 @@
 package com.july.offline.security.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -202,6 +206,8 @@ private fun ReportContent(
 
 @Composable
 private fun FindingCard(finding: SecurityFinding) {
+    var expanded by remember { mutableStateOf(false) }
+
     val color = when (finding.severity) {
         SecurityFinding.Severity.CRITICAL -> JulyPalette.Error
         SecurityFinding.Severity.HIGH     -> JulyPalette.Warning
@@ -209,25 +215,41 @@ private fun FindingCard(finding: SecurityFinding) {
         SecurityFinding.Severity.LOW      -> JulyPalette.TextSecondary
         SecurityFinding.Severity.INFO     -> JulyPalette.TextTertiary
     }
+
+    val hasRemediation = finding.remediation != null
+
     Surface(
         color = JulyPalette.Dark100,
         shape = MaterialTheme.shapes.small,
         modifier = Modifier
             .fillMaxWidth()
             .border(0.5.dp, color.copy(alpha = 0.4f), MaterialTheme.shapes.small)
+            .then(if (hasRemediation) Modifier.clickable { expanded = !expanded } else Modifier)
     ) {
         Column(Modifier.padding(12.dp)) {
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(finding.title,
                     style = MaterialTheme.typography.labelLarge,
                     color = JulyPalette.TextPrimary,
                     modifier = Modifier.weight(1f))
-                Text(finding.severity.name.lowercase(),
-                    style = MaterialTheme.typography.labelSmall, color = color)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(finding.severity.name.lowercase(),
+                        style = MaterialTheme.typography.labelSmall, color = color)
+                    if (hasRemediation) {
+                        Text(if (expanded) "▲" else "▼",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = JulyPalette.Green400.copy(alpha = 0.6f))
+                    }
+                }
             }
+
             Spacer(Modifier.height(4.dp))
             Text(finding.description, style = MaterialTheme.typography.bodySmall,
                 color = JulyPalette.TextSecondary)
@@ -235,6 +257,76 @@ private fun FindingCard(finding: SecurityFinding) {
             Text("→ ${finding.recommendation}",
                 style = MaterialTheme.typography.labelSmall,
                 color = JulyPalette.Green400.copy(alpha = 0.8f))
+
+            // Sección de remediación expandible
+            AnimatedVisibility(visible = expanded) {
+                finding.remediation?.let { rem ->
+                    Column(modifier = Modifier.padding(top = 10.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(0.5.dp)
+                                .background(JulyPalette.Dark400)
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            "cómo corregirlo",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = JulyPalette.Green400
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(rem.title,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = JulyPalette.TextPrimary)
+                        Spacer(Modifier.height(8.dp))
+                        rem.steps.forEach { step ->
+                            if (step.command != null) {
+                                // Bloque de código
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 3.dp)
+                                        .background(
+                                            JulyPalette.Dark50,
+                                            RoundedCornerShape(4.dp)
+                                        )
+                                        .border(
+                                            0.5.dp,
+                                            JulyPalette.Dark400,
+                                            RoundedCornerShape(4.dp)
+                                        )
+                                        .padding(horizontal = 10.dp, vertical = 7.dp)
+                                ) {
+                                    if (step.description.isNotBlank()) {
+                                        Column {
+                                            Text(step.description,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = JulyPalette.TextTertiary)
+                                            Spacer(Modifier.height(3.dp))
+                                            Text(step.command,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = JulyPalette.ElectricBlue,
+                                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                                        }
+                                    } else {
+                                        Text(step.command,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = JulyPalette.ElectricBlue,
+                                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                                    }
+                                }
+                            } else if (step.description.isNotBlank()) {
+                                Text(
+                                    "• ${step.description}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = JulyPalette.TextSecondary,
+                                    modifier = Modifier.padding(vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

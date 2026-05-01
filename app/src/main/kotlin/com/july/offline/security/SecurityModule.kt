@@ -8,6 +8,7 @@ import com.july.offline.domain.port.LanguageModelEngine
 import com.july.offline.security.audit.AppAuditor
 import com.july.offline.security.audit.DeviceAuditor
 import com.july.offline.security.audit.NetworkAuditor
+import com.july.offline.security.report.RemediationAdvisor
 import com.july.offline.security.report.SecurityFinding
 import com.july.offline.security.report.SecurityReport
 import com.july.offline.security.report.SecurityReport.AuditType
@@ -21,6 +22,7 @@ class SecurityModule @Inject constructor(
     private val appAuditor: AppAuditor,
     private val deviceAuditor: DeviceAuditor,
     private val networkAuditor: NetworkAuditor,
+    private val remediationAdvisor: RemediationAdvisor,
     private val llmEngine: LanguageModelEngine,
     private val logger: DiagnosticsLogger
 ) {
@@ -50,7 +52,7 @@ class SecurityModule @Inject constructor(
             id = UUID.randomUUID().toString(),
             createdAt = Instant.now(),
             auditType = AuditType.FULL,
-            findings = findings.sortedByDescending { it.severity.ordinal },
+            findings = enrich(findings),
             llmSummary = summary,
             durationMs = System.currentTimeMillis() - start
         )
@@ -60,8 +62,7 @@ class SecurityModule @Inject constructor(
         val findings = appAuditor.audit()
         return SecurityReport(
             UUID.randomUUID().toString(), Instant.now(), AuditType.APP,
-            findings.sortedByDescending { it.severity.ordinal },
-            generateLlmSummary(findings)
+            enrich(findings), generateLlmSummary(findings)
         )
     }
 
@@ -69,8 +70,7 @@ class SecurityModule @Inject constructor(
         val findings = deviceAuditor.audit()
         return SecurityReport(
             UUID.randomUUID().toString(), Instant.now(), AuditType.DEVICE,
-            findings.sortedByDescending { it.severity.ordinal },
-            generateLlmSummary(findings)
+            enrich(findings), generateLlmSummary(findings)
         )
     }
 
@@ -80,10 +80,15 @@ class SecurityModule @Inject constructor(
         val result = networkAuditor.audit(onProgress)
         return SecurityReport(
             UUID.randomUUID().toString(), Instant.now(), AuditType.NETWORK,
-            result.findings.sortedByDescending { it.severity.ordinal },
-            generateLlmSummary(result.findings)
+            enrich(result.findings), generateLlmSummary(result.findings)
         )
     }
+
+    private fun enrich(findings: List<SecurityFinding>): List<SecurityFinding> =
+        findings.sortedByDescending { it.severity.ordinal }.map { f ->
+            val rem = remediationAdvisor.advise(f)
+            if (rem != null) f.copy(remediation = rem) else f
+        }
 
     private suspend fun generateLlmSummary(findings: List<SecurityFinding>): String {
         if (findings.isEmpty()) return "No se encontraron hallazgos de seguridad."
