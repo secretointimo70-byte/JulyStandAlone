@@ -20,13 +20,17 @@ class RemediationAdvisor @Inject constructor() {
                     ?.let { Regex("port:\\s*(\\d+)").find(it)?.groupValues?.get(1)?.toIntOrNull() }
                 portRemediation(port ?: 0, banner)
             }
-            finding.id == "NET_HTTP_NO_REDIRECT"       -> httpRedirectRemediation(banner)
-            finding.id.contains("NET_TELNET")          -> telnetRemediation()
-            finding.id == "APP_BUILD_001"              -> debugBuildRemediation()
-            finding.id == "DEV_OPT_002"                -> usbDebugRemediation()
+            finding.id.contains("NET_HTTP_NO_REDIRECT")  -> httpRedirectRemediation(banner)
+            finding.id.contains("NET_TELNET")           -> telnetRemediation()
+            finding.id.contains("TLS_WEAK_SIG")         -> weakSigRemediation(banner)
+            finding.id.contains("TLS_NO_RESPONSE")      -> tlsConfigRemediation()
+            finding.id == "APP_BUILD_001"               -> debugBuildRemediation()
+            finding.id == "DEV_OPT_002"                 -> usbDebugRemediation()
             finding.id == "DEV_LOCK_001" && finding.severity == SecurityFinding.Severity.CRITICAL -> lockScreenRemediation()
-            finding.id == "APP_NET_001"                -> networkSecurityConfigRemediation()
+            finding.id == "APP_NET_001"                 -> networkSecurityConfigRemediation()
             finding.id == "DEV_ENC_001" && finding.severity == SecurityFinding.Severity.CRITICAL  -> encryptionRemediation()
+            finding.id == "DEV_APP_001" && finding.severity != SecurityFinding.Severity.INFO -> sideloadedAppsRemediation()
+            finding.id == "DEV_OS_001"  && finding.severity == SecurityFinding.Severity.HIGH -> updateAndroidRemediation()
             else -> null
         }
     }
@@ -331,6 +335,79 @@ class RemediationAdvisor @Inject constructor() {
             ),
             RemediationStep("Referenciar en AndroidManifest.xml dentro de <application>:",
                 "android:networkSecurityConfig=\"@xml/network_security_config\"")
+        )
+    )
+
+    private fun weakSigRemediation(banner: String) = Remediation(
+        title = "Reemplazar certificado con algoritmo débil (SHA-256+)",
+        steps = when {
+            banner.contains("nginx") -> listOf(
+                RemediationStep("Generar nuevo certificado SHA-256 con Let's Encrypt:",
+                    "sudo certbot --nginx -d tu-dominio.com"),
+                RemediationStep("Verificar el nuevo algoritmo del certificado:",
+                    "openssl s_client -connect tu-dominio.com:443 </dev/null 2>&1 | grep 'Server public key'"),
+                RemediationStep("Recargar nginx:",
+                    "sudo systemctl reload nginx")
+            )
+            banner.contains("apache") -> listOf(
+                RemediationStep("Generar nuevo certificado SHA-256 con Let's Encrypt:",
+                    "sudo certbot --apache -d tu-dominio.com"),
+                RemediationStep("Verificar algoritmo:",
+                    "openssl s_client -connect tu-dominio.com:443 </dev/null 2>&1 | grep Signature"),
+                RemediationStep("Reiniciar Apache:",
+                    "sudo systemctl restart apache2")
+            )
+            else -> listOf(
+                RemediationStep("MD5 y SHA1 están rotos criptográficamente. Reemplazar el certificado."),
+                RemediationStep("Generar nueva clave y CSR con SHA-256:",
+                    "openssl req -new -newkey rsa:4096 -sha256 -nodes -keyout server.key -out server.csr"),
+                RemediationStep("Obtener certificado firmado por CA pública (Let's Encrypt es gratis):",
+                    "sudo certbot certonly --standalone -d tu-dominio.com"),
+                RemediationStep("Verificar el algoritmo resultante:",
+                    "openssl x509 -in server.crt -noout -text | grep 'Signature Algorithm'")
+            )
+        }
+    )
+
+    private fun tlsConfigRemediation() = Remediation(
+        title = "Corregir configuración TLS en el servidor",
+        steps = listOf(
+            RemediationStep("Verificar que el proceso escucha en el puerto 443:",
+                "sudo ss -tlnp | grep :443"),
+            RemediationStep("Comprobar la configuración SSL/TLS manualmente:",
+                "openssl s_client -connect 127.0.0.1:443 -tls1_2"),
+            RemediationStep("Si el puerto 443 está abierto pero TLS no responde, revisar los logs del servidor web:"),
+            RemediationStep("nginx:",
+                "sudo tail -50 /var/log/nginx/error.log"),
+            RemediationStep("Apache:",
+                "sudo tail -50 /var/log/apache2/error.log"),
+            RemediationStep("Verificar que el certificado y la clave privada coinciden:",
+                "openssl x509 -modulus -noout -in cert.pem | md5sum && openssl rsa -modulus -noout -in key.pem | md5sum")
+        )
+    )
+
+    private fun sideloadedAppsRemediation() = Remediation(
+        title = "Revisar y gestionar apps instaladas fuera de Play Store",
+        steps = listOf(
+            RemediationStep("Ir a: Ajustes → Apps → Ver todas las apps"),
+            RemediationStep("Identificar apps sin editor conocido o con permisos excesivos."),
+            RemediationStep("Para desinstalar una app sospechosa vía ADB:",
+                "adb shell pm uninstall --user 0 com.nombre.del.paquete"),
+            RemediationStep("Verificar permisos sensibles de una app:",
+                "adb shell dumpsys package com.nombre.del.paquete | grep permission"),
+            RemediationStep("Deshabilitar 'Instalar apps de fuentes desconocidas' en Ajustes → Seguridad.")
+        )
+    )
+
+    private fun updateAndroidRemediation() = Remediation(
+        title = "Actualizar el sistema Android",
+        steps = listOf(
+            RemediationStep("Ir a: Ajustes → Sistema → Actualización del sistema"),
+            RemediationStep("Si no hay actualización disponible del fabricante, considerar LineageOS u otra ROM de seguridad activa."),
+            RemediationStep("Mientras tanto, activar Google Play Protect:",
+                "Ajustes → Seguridad → Google Play Protect → Analizar"),
+            RemediationStep("Verificar la versión actual de parches de seguridad:",
+                "Ajustes → Acerca del teléfono → Nivel de parche de seguridad Android")
         )
     )
 }
