@@ -3,6 +3,8 @@ package com.july.offline.ui.settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -11,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.july.offline.ai.llm.router.LlmMode
+import com.july.offline.ai.tts.TtsVoiceOption
 import com.july.offline.core.memory.ModelMode
 import com.july.offline.ui.permission.PermissionHandler
 import com.july.offline.ui.theme.*
@@ -23,6 +26,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val availableVoices by viewModel.availableVoices.collectAsStateWithLifecycle()
 
     Scaffold(
         containerColor = JulyPalette.Dark50,
@@ -57,7 +61,8 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(JulyPalette.Dark50),
+                .background(JulyPalette.Dark50)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             // Permiso de Micrófono
@@ -82,10 +87,20 @@ fun SettingsScreen(
             JulyDivider()
 
             // TTS toggle
-            JulySettingRow(label = "síntesis de voz", sublabel = "Piper · es_ES-sharvard") {
+            JulySettingRow(label = "síntesis de voz", sublabel = "motor de texto a voz del sistema") {
                 JulySwitch(
                     checked = settings.ttsEnabled,
                     onCheckedChange = { viewModel.setTtsEnabled(it) }
+                )
+            }
+
+            // Selector de voz (visible solo si hay voces disponibles)
+            if (availableVoices.isNotEmpty()) {
+                JulyDivider()
+                JulyVoiceSection(
+                    voices = availableVoices,
+                    selectedVoiceName = settings.ttsVoiceName,
+                    onSelect = { viewModel.selectVoice(it) }
                 )
             }
 
@@ -257,6 +272,68 @@ private fun JulySwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
             uncheckedTrackColor = JulyPalette.Dark300
         )
     )
+}
+
+@Composable
+private fun JulyVoiceSection(
+    voices: List<TtsVoiceOption>,
+    selectedVoiceName: String,
+    onSelect: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            text = "voz en español",
+            style = MaterialTheme.typography.bodyMedium,
+            color = JulyPalette.TextPrimary
+        )
+        Text(
+            text = "★★★ alta calidad · ★★ buena · ★ estándar",
+            style = MaterialTheme.typography.labelSmall,
+            color = JulyPalette.TextTertiary
+        )
+        voices.forEach { voice ->
+            val isSelected = voice.name == selectedVoiceName ||
+                (selectedVoiceName.isBlank() && voice == voices.first())
+            Surface(
+                onClick = { onSelect(voice.name) },
+                color = if (isSelected) JulyPalette.Green800 else JulyPalette.Dark200,
+                shape = EngineChipShape,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 0.5.dp,
+                        color = if (isSelected) JulyPalette.Green400 else JulyPalette.Dark400,
+                        shape = EngineChipShape
+                    )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = voice.displayName,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (isSelected) JulyPalette.Green400 else JulyPalette.TextSecondary
+                    )
+                    if (isSelected) {
+                        Text(
+                            text = "✓",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = JulyPalette.Green400
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

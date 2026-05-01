@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.july.offline.ai.llm.router.LlmMode
 import com.july.offline.ai.llm.router.LlmRouter
+import com.july.offline.ai.tts.AndroidTtsAdapter
+import com.july.offline.ai.tts.TtsVoiceOption
 import com.july.offline.core.memory.ModelMemoryManager
 import com.july.offline.core.memory.ModelMode
 import com.july.offline.data.datastore.AppPreferencesDataStore
@@ -22,28 +24,30 @@ class SettingsViewModel @Inject constructor(
     private val preferencesDataStore: AppPreferencesDataStore,
     private val systemConfigDataStore: SystemConfigDataStore,
     private val modelMemoryManager: ModelMemoryManager,
-    private val llmRouter: LlmRouter
+    private val llmRouter: LlmRouter,
+    private val ttsAdapter: AndroidTtsAdapter
 ) : ViewModel() {
 
     val settings: StateFlow<AppSettings> = combine(
-        preferencesDataStore.language,
-        preferencesDataStore.ttsEnabled,
-        preferencesDataStore.showTranscript,
-        systemConfigDataStore.modelMode,
-        systemConfigDataStore.llmMode
-    ) { language, ttsEnabled, showTranscript, modelMode, llmMode ->
-        AppSettings(
-            language = language,
-            ttsEnabled = ttsEnabled,
-            showTranscript = showTranscript,
-            modelMode = modelMode,
-            llmMode = llmMode
-        )
+        combine(
+            preferencesDataStore.language,
+            preferencesDataStore.ttsEnabled,
+            preferencesDataStore.showTranscript,
+            systemConfigDataStore.modelMode,
+            systemConfigDataStore.llmMode
+        ) { language, ttsEnabled, showTranscript, modelMode, llmMode ->
+            AppSettings(language, ttsEnabled, showTranscript, modelMode, llmMode)
+        },
+        preferencesDataStore.ttsVoiceName
+    ) { base, voiceName ->
+        base.copy(ttsVoiceName = voiceName)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = AppSettings()
     )
+
+    val availableVoices: StateFlow<List<TtsVoiceOption>> = ttsAdapter.availableVoices
 
     fun setTtsEnabled(enabled: Boolean) {
         viewModelScope.launch { preferencesDataStore.setTtsEnabled(enabled) }
@@ -64,6 +68,13 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             systemConfigDataStore.setLlmMode(mode)
             llmRouter.currentMode = mode
+        }
+    }
+
+    fun selectVoice(voiceName: String) {
+        viewModelScope.launch {
+            preferencesDataStore.setTtsVoiceName(voiceName)
+            ttsAdapter.applyVoice(voiceName)
         }
     }
 }

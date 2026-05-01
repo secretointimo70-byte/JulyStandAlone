@@ -4,10 +4,49 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-feature
         android:name="android.hardware.microphone"
         android:required="true" />
+
+    <!-- Declara solo los paquetes que July puede abrir explícitamente -->
+    <queries>
+        <package android:name="com.android.settings" />
+        <package android:name="com.android.dialer" />
+        <package android:name="com.android.camera" />
+        <package android:name="com.android.gallery3d" />
+        <package android:name="com.google.android.apps.photos" />
+        <package android:name="com.android.contacts" />
+        <package android:name="com.android.mms" />
+        <package android:name="com.google.android.apps.maps" />
+        <package android:name="com.google.android.youtube" />
+        <package android:name="com.android.chrome" />
+        <package android:name="com.google.android.gm" />
+        <package android:name="com.android.calendar" />
+        <package android:name="com.android.calculator2" />
+        <package android:name="com.whatsapp" />
+        <package android:name="com.facebook.katana" />
+        <package android:name="com.facebook.lite" />
+        <package android:name="com.facebook.mlite" />
+        <package android:name="com.instagram.android" />
+        <package android:name="com.zhiliaoapp.musically" />
+        <package android:name="com.spotify.music" />
+        <package android:name="org.telegram.messenger" />
+        <!-- Variantes por fabricante -->
+        <package android:name="com.google.android.dialer" />
+        <package android:name="com.samsung.android.dialer" />
+        <package android:name="com.huawei.contacts" />
+        <package android:name="com.google.android.GoogleCamera" />
+        <package android:name="com.huawei.camera" />
+        <package android:name="com.huawei.photos" />
+        <package android:name="com.google.android.apps.messaging" />
+        <package android:name="com.google.android.contacts" />
+        <package android:name="com.google.android.calculator" />
+        <package android:name="com.huawei.calculator" />
+        <package android:name="com.google.android.calendar" />
+        <package android:name="com.huawei.calendar" />
+    </queries>
 
     <application
         android:name=".JulyApplication"

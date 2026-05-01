@@ -46,7 +46,10 @@ class SessionRepositoryImpl @Inject constructor(
 
     override fun getRecentSessions(limit: Int): Flow<List<SessionEntity>> {
         return sessionDao.getRecent(limit).map { sessions ->
-            sessions.map { it.toDomain(emptyList()) }
+            sessions.map { session ->
+                val messages = messageDao.getBySession(session.id).map { it.toDomain() }
+                session.toDomain(messages)
+            }
         }
     }
 

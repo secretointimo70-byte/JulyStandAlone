@@ -14,6 +14,9 @@ import com.july.offline.domain.port.LanguageModelEngine
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import java.io.File
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import javax.inject.Inject
 
 /**
@@ -189,35 +192,43 @@ class LlamaCppLLMAdapter @Inject constructor(
     }
 
     /**
-     * Construye el prompt completo en formato ChatML (Llama 3.x Instruct).
+     * Construye el prompt en formato Llama 3.2 Instruct (token nativo del modelo).
+     * Llama 3.x usa <|start_header_id|>role<|end_header_id|> y <|eot_id|> como stop token.
+     * NO usar formato Phi-3 (<|system|>/<|end|>) — ese modelo no lo reconoce.
      */
     private fun buildPrompt(prompt: String, history: List<Message>): String {
         val sb = StringBuilder()
 
-        sb.append("<|system|>\n")
+        val now = LocalDateTime.now()
+        val dateStr = now.format(DateTimeFormatter.ofPattern("EEEE d 'de' MMMM 'de' yyyy", Locale("es")))
+        val timeStr = now.format(DateTimeFormatter.ofPattern("HH:mm"))
+
+        sb.append("<|begin_of_text|>")
+        sb.append("<|start_header_id|>system<|end_header_id|>\n\n")
         sb.append(config.systemPrompt)
-        sb.append("\n<|end|>\n")
+        sb.append("\nFecha actual: $dateStr. Hora actual: $timeStr.")
+        sb.append("<|eot_id|>")
 
         history.takeLast(10).forEach { msg ->
             when (msg.role) {
                 MessageRole.USER -> {
-                    sb.append("<|user|>\n")
+                    sb.append("<|start_header_id|>user<|end_header_id|>\n\n")
                     sb.append(msg.content)
-                    sb.append("\n<|end|>\n")
+                    sb.append("<|eot_id|>")
                 }
                 MessageRole.ASSISTANT -> {
-                    sb.append("<|assistant|>\n")
+                    sb.append("<|start_header_id|>assistant<|end_header_id|>\n\n")
                     sb.append(msg.content)
-                    sb.append("\n<|end|>\n")
+                    sb.append("<|eot_id|>")
                 }
                 MessageRole.SYSTEM -> { /* ignorado */ }
             }
         }
 
-        sb.append("<|user|>\n")
+        sb.append("<|start_header_id|>user<|end_header_id|>\n\n")
         sb.append(prompt)
-        sb.append("\n<|end|>\n")
-        sb.append("<|assistant|>\n")
+        sb.append("<|eot_id|>")
+        sb.append("<|start_header_id|>assistant<|end_header_id|>\n\n")
 
         return sb.toString()
     }

@@ -4,39 +4,39 @@ import android.content.Context
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import android.speech.tts.Voice
 import com.july.offline.core.error.AppError
 import com.july.offline.core.logging.DiagnosticsLogger
 import com.july.offline.core.result.JulyResult
+import com.july.offline.data.datastore.AppPreferencesDataStore
 import com.july.offline.domain.port.TextToSpeechEngine
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
 import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.coroutines.resume
 
-/**
- * Implementación de TextToSpeechEngine usando Android TTS (sin .so, sin modelos).
- *
- * Usa el motor TTS del sistema (Google TTS u otro instalado en el dispositivo).
- * Funciona offline si el paquete de voz en español está descargado.
- *
- * Para garantizar voz offline en español:
- *   Ajustes → Accesibilidad → Texto a voz → Google TTS → Descargar idioma: Español
- *
- * Nota sobre el pipeline de audio:
- *   Android TTS reproduce directamente por el speaker del sistema vía speak().
- *   synthesize() devuelve ByteArray vacío; AudioPlayerAdapter lo omite (ya maneja
- *   arrays vacíos). El contrato suspend se mantiene: la función no retorna hasta
- *   que el habla termina, por lo que el orquestador puede volver a escuchar
- *   inmediatamente después.
- *
- * Para cambiar a Piper cuando estén disponibles los .so:
- *   Cambiar el @Binds en EngineModule de AndroidTtsAdapter a PiperTTSAdapter.
- */
+data class TtsVoiceOption(
+    val name: String,
+    val displayName: String,
+    val quality: Int
+)
+
+@Singleton
 class AndroidTtsAdapter @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val preferencesDataStore: AppPreferencesDataStore,
     private val logger: DiagnosticsLogger
 ) : TextToSpeechEngine {
 
@@ -46,13 +46,12 @@ class AndroidTtsAdapter @Inject constructor(
         private const val INIT_TIMEOUT_MS = 5_000L
     }
 
+    private val adapterScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var tts: TextToSpeech? = null
-
-    /**
-     * Se completa con true/false cuando Android TTS termina de inicializarse.
-     * La inicialización es asíncrona — no bloquea el hilo de Hilt.
-     */
     private val initResult = CompletableDeferred<Boolean>()
+
+    private val _availableVoices = MutableStateFlow<List<TtsVoiceOption>>(emptyList())
+    val availableVoices: StateFlow<List<TtsVoiceOption>> = _availableVoices.asStateFlow()
 
     init {
         tts = TextToSpeech(context) { status ->
@@ -63,18 +62,57 @@ class AndroidTtsAdapter @Inject constructor(
                 if (langResult == TextToSpeech.LANG_MISSING_DATA ||
                     langResult == TextToSpeech.LANG_NOT_SUPPORTED
                 ) {
-                    // Fallback a es genérico
                     tts?.setLanguage(Locale("es"))
                     logger.logWarning(TAG, "es_ES no disponible, usando es genérico")
                 }
-                tts?.setSpeechRate(0.95f)
-                tts?.setPitch(1.0f)
+                tts?.setSpeechRate(0.88f)
+                tts?.setPitch(0.95f)
                 logger.logInfo(TAG, "Android TTS inicializado")
+
+                adapterScope.launch {
+                    populateVoices()
+                    val savedVoice = preferencesDataStore.ttsVoiceName.first()
+                    if (savedVoice.isNotBlank()) applyVoice(savedVoice)
+                }
             } else {
                 logger.logError(TAG, "Android TTS falló al inicializar (status=$status)", null)
             }
             initResult.complete(ok)
         }
+    }
+
+    private fun populateVoices() {
+        val voices = tts?.voices
+            ?.filter { voice ->
+                voice.locale.language == "es" && !voice.isNetworkConnectionRequired
+            }
+            ?.map { voice -> TtsVoiceOption(voice.name, formatVoiceName(voice), voice.quality) }
+            ?.sortedByDescending { it.quality }
+            ?: emptyList()
+        _availableVoices.value = voices
+    }
+
+    fun applyVoice(voiceName: String) {
+        val voice = tts?.voices?.find { it.name == voiceName }
+        if (voice != null) {
+            tts?.voice = voice
+            logger.logInfo(TAG, "Voz aplicada: $voiceName")
+        }
+    }
+
+    private fun formatVoiceName(voice: Voice): String {
+        val id = voice.name
+            .removePrefix("es-es-x-")
+            .removePrefix("es_ES-")
+            .removeSuffix("-local")
+            .removeSuffix("-embedded")
+            .removeSuffix("-network")
+        val stars = when {
+            voice.quality >= Voice.QUALITY_VERY_HIGH -> "★★★"
+            voice.quality >= Voice.QUALITY_HIGH -> "★★"
+            else -> "★"
+        }
+        return "$id  $stars"
     }
 
     override suspend fun synthesize(text: String): JulyResult<ByteArray> {
@@ -111,7 +149,8 @@ class AndroidTtsAdapter @Inject constructor(
             })
 
             val params = Bundle()
-            val result = tts?.speak(text, TextToSpeech.QUEUE_FLUSH, params, UTTERANCE_ID)
+            val ssml = toSsml(text)
+            val result = tts?.speak(ssml, TextToSpeech.QUEUE_FLUSH, params, UTTERANCE_ID)
 
             if (result != TextToSpeech.SUCCESS) {
                 if (cont.isActive) cont.resume(
@@ -131,4 +170,17 @@ class AndroidTtsAdapter @Inject constructor(
     }
 
     override fun getSupportedLanguages(): List<String> = listOf("es", "es_ES")
+
+    private fun toSsml(text: String): String {
+        val escaped = text
+            .replace("&", "&amp;")
+            .replace("\"", "&quot;")
+            .replace("'", "&apos;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+        val withPauses = escaped
+            .replace(Regex("([.!?])\\s+"), "$1<break time=\"400ms\"/> ")
+            .replace(Regex(",\\s+"), ",<break time=\"150ms\"/> ")
+        return "<speak>$withPauses</speak>"
+    }
 }

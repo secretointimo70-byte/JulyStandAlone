@@ -26,6 +26,7 @@ models/
 *.txt
 *.log
 *.png
+!app/src/main/res/**/*.png
 
 # IDE y herramientas locales
 .idea/

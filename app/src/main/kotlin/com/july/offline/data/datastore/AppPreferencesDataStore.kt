@@ -23,6 +23,7 @@ class AppPreferencesDataStore @Inject constructor(
         val SHOW_TRANSCRIPT = booleanPreferencesKey("show_transcript")
         val WAKE_WORD_ENABLED = booleanPreferencesKey("wake_word_enabled")
         val EMERGENCY_MODULE_ENABLED = booleanPreferencesKey("emergency_module_enabled")
+        val TTS_VOICE_NAME = stringPreferencesKey("tts_voice_name")
     }
 
     val language: Flow<String> = context.appPrefsDataStore.data.map { it[Keys.LANGUAGE] ?: "es" }
@@ -30,6 +31,7 @@ class AppPreferencesDataStore @Inject constructor(
     val showTranscript: Flow<Boolean> = context.appPrefsDataStore.data.map { it[Keys.SHOW_TRANSCRIPT] ?: true }
     val wakeWordEnabled: Flow<Boolean> = context.appPrefsDataStore.data.map { it[Keys.WAKE_WORD_ENABLED] ?: false }
     val emergencyModuleEnabled: Flow<Boolean> = context.appPrefsDataStore.data.map { it[Keys.EMERGENCY_MODULE_ENABLED] ?: true }
+    val ttsVoiceName: Flow<String> = context.appPrefsDataStore.data.map { it[Keys.TTS_VOICE_NAME] ?: "" }
 
     suspend fun setLanguage(lang: String) {
         context.appPrefsDataStore.edit { it[Keys.LANGUAGE] = lang }
@@ -49,5 +51,9 @@ class AppPreferencesDataStore @Inject constructor(
 
     suspend fun setEmergencyModuleEnabled(enabled: Boolean) {
         context.appPrefsDataStore.edit { it[Keys.EMERGENCY_MODULE_ENABLED] = enabled }
+    }
+
+    suspend fun setTtsVoiceName(name: String) {
+        context.appPrefsDataStore.edit { it[Keys.TTS_VOICE_NAME] = name }
     }
 }

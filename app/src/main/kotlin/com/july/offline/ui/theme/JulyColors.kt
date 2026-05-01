@@ -30,6 +30,10 @@ object JulyPalette {
     val TextTertiary  = Color(0xFF3D5E3D)   // texto muy sutil
     val TextMuted     = Color(0xFF1E2A1E)   // texto casi invisible
 
+    // Azul eléctrico — mensajes del usuario
+    val ElectricBlue     = Color(0xFF00B4FF)
+    val ElectricBlueDim  = Color(0xFF0078AA)
+
     // Estados semánticos
     val Error   = Color(0xFFCF6679)
     val Warning = Color(0xFFBA7517)

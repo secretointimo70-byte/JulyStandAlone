@@ -8,5 +8,6 @@ data class AppSettings(
     val ttsEnabled: Boolean = true,
     val showTranscript: Boolean = true,
     val modelMode: ModelMode = ModelMode.SPEED,
-    val llmMode: LlmMode = LlmMode.AUTO
+    val llmMode: LlmMode = LlmMode.AUTO,
+    val ttsVoiceName: String = ""
 )

@@ -1,6 +1,7 @@
 package com.july.offline.ui.conversation.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.july.offline.ui.conversation.MessageUiModel
 import com.july.offline.ui.theme.AssistantMessageShape
@@ -36,24 +38,26 @@ fun MessageBubble(message: MessageUiModel, modifier: Modifier = Modifier) {
         Column(
             horizontalAlignment = if (message.isUser) Alignment.End else Alignment.Start
         ) {
-            val bgColor = if (message.isUser)
-                JulyPalette.Green800
-            else
-                JulyPalette.Dark200
-
-            val textColor = JulyPalette.TextPrimary
             val shape = if (message.isUser) UserMessageShape else AssistantMessageShape
 
-            Box(
-                modifier = Modifier
+            val boxModifier = if (message.isUser) {
+                Modifier
                     .widthIn(max = 260.dp)
-                    .background(color = bgColor, shape = shape)
+                    .background(color = Color.Transparent, shape = shape)
+                    .border(width = 0.5.dp, color = JulyPalette.ElectricBlueDim, shape = shape)
                     .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
+            } else {
+                Modifier
+                    .widthIn(max = 260.dp)
+                    .background(color = JulyPalette.Dark200, shape = shape)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            }
+
+            Box(modifier = boxModifier) {
                 Text(
                     text = message.text,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = textColor
+                    color = if (message.isUser) JulyPalette.ElectricBlue else JulyPalette.TextPrimary
                 )
             }
 

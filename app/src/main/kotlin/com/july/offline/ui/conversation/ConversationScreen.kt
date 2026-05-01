@@ -1,7 +1,12 @@
 package com.july.offline.ui.conversation
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -12,10 +17,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.july.offline.R
 import com.july.offline.ui.conversation.components.*
 import com.july.offline.ui.permission.PermissionHandler
 import com.july.offline.ui.theme.*
@@ -29,6 +40,18 @@ fun ConversationScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val emergencyState by viewModel.emergencyState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
+    val context = LocalContext.current
+
+    // Pedir permisos de cámara (linterna) y llamadas al inicio
+    val actionPermissionsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { /* resultado ignorado — las acciones fallan silenciosamente si se deniegan */ }
+
+    LaunchedEffect(Unit) {
+        val needed = listOf(Manifest.permission.CAMERA, Manifest.permission.CALL_PHONE)
+            .filter { ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED }
+        if (needed.isNotEmpty()) actionPermissionsLauncher.launch(needed.toTypedArray())
+    }
 
     LaunchedEffect(emergencyState) {
         if (emergencyState !is com.july.offline.domain.model.EmergencyState.Inactive) {
@@ -42,8 +65,22 @@ fun ConversationScreen(
         }
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(R.drawable.july_background),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF050D1A).copy(alpha = 0.72f))
+        )
+    }
+
     Scaffold(
-        containerColor = JulyPalette.Dark50,
+        containerColor = Color.Transparent,
         topBar = {
             JulyTopBar(
                 uiState = uiState,
@@ -232,7 +269,7 @@ private fun JulyTopBar(
 ) {
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = JulyPalette.Dark100,
+            containerColor = JulyPalette.Dark100.copy(alpha = 0.75f),
             titleContentColor = JulyPalette.Green400
         ),
         title = {

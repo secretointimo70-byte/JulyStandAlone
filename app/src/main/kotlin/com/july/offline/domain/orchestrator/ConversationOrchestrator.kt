@@ -6,6 +6,9 @@ import com.july.offline.core.error.ErrorAction
 import com.july.offline.core.error.ErrorHandler
 import com.july.offline.core.logging.DiagnosticsLogger
 import com.july.offline.core.result.JulyResult
+import com.july.offline.domain.action.ActionCommand
+import com.july.offline.domain.action.ActionExecutor
+import com.july.offline.domain.action.TranscriptActionDetector
 import com.july.offline.domain.model.ConversationState
 import com.july.offline.domain.model.LlmResponse
 import com.july.offline.domain.model.Message
@@ -49,6 +52,7 @@ class ConversationOrchestrator @Inject constructor(
     private val sttEngine: SpeechToTextEngine,
     private val llmEngine: LanguageModelEngine,
     private val ttsEngine: TextToSpeechEngine,
+    private val actionExecutor: ActionExecutor,
     private val errorHandler: ErrorHandler,
     private val logger: DiagnosticsLogger,
     private val dispatchers: CoroutineDispatchers
@@ -176,7 +180,28 @@ class ConversationOrchestrator @Inject constructor(
         )
         sessionCoordinator.addMessage(sessionId, userMessage)
 
-        // ── 3. THINKING ────────────────────────────────────────────────
+        // ── 3. DETECCIÓN DE ACCIÓN (antes del LLM) ────────────────────
+        val detectedAction = TranscriptActionDetector.detect(transcript.text)
+        if (detectedAction != null) {
+            val (command, confirmation) = detectedAction
+            logger.logInfo("Orchestrator", "Acción detectada: $command")
+            val actionMsg = Message(
+                id = UUID.randomUUID().toString(),
+                role = MessageRole.ASSISTANT,
+                content = confirmation
+            )
+            sessionCoordinator.addMessage(sessionId, actionMsg)
+            stateHolder.transitionToSpeaking(sessionId, LlmResponse(confirmation, 0, 0, "action"))
+            ttsEngine.synthesize(confirmation).let { r ->
+                if (r is JulyResult.Success) audioCoordinator.playAudio(r.data)
+            }
+            actionExecutor.execute(command)
+            stateHolder.incrementCycleCount()
+            resumeOrIdle()
+            return@withContext
+        }
+
+        // ── 4. THINKING (LLM) ─────────────────────────────────────────
         stateHolder.transitionToThinking(sessionId, transcript)
         val history = sessionCoordinator.getHistory(sessionId)
         val startLlm = System.currentTimeMillis()
@@ -203,18 +228,19 @@ class ConversationOrchestrator @Inject constructor(
             }
         }
 
+        val cleanedResponse = cleanForTts(llmResponse.text)
         val assistantMessage = Message(
             id = UUID.randomUUID().toString(),
             role = MessageRole.ASSISTANT,
-            content = llmResponse.text
+            content = cleanedResponse
         )
         sessionCoordinator.addMessage(sessionId, assistantMessage)
 
-        // ── 4. SPEAKING ────────────────────────────────────────────────
+        // ── 5. SPEAKING ────────────────────────────────────────────────
         stateHolder.transitionToSpeaking(sessionId, llmResponse)
         val startTts = System.currentTimeMillis()
 
-        when (val ttsResult = ttsEngine.synthesize(cleanForTts(llmResponse.text))) {
+        when (val ttsResult = ttsEngine.synthesize(cleanedResponse)) {
             is JulyResult.Success -> {
                 logger.logEngineEvent("TTS", "synthesized", System.currentTimeMillis() - startTts)
                 audioCoordinator.playAudio(ttsResult.data)
@@ -225,7 +251,7 @@ class ConversationOrchestrator @Inject constructor(
             }
         }
 
-        // ── 5. RESET ───────────────────────────────────────────────────
+        // ── 6. RESET ───────────────────────────────────────────────────
         stateHolder.incrementCycleCount()
         resumeOrIdle()
     }
@@ -259,12 +285,17 @@ class ConversationOrchestrator @Inject constructor(
     }
 
     private fun cleanForTts(text: String): String {
-        return text
-            .replace(Regex("<\\|[^|]*\\|>"), "")   // <|system|> <|end|> etc.
-            .replace(Regex("<[^>]+>"), "")           // <cualquier tag HTML/XML>
-            .replace(Regex("[*#`_~<>]"), "")         // markdown + símbolos < > sueltos
-            .replace(Regex("^\\s*[-•]\\s*", RegexOption.MULTILINE), "") // viñetas al inicio de línea
-            .replace(Regex("\\s{2,}"), " ")          // espacios múltiples
+        val truncated = text
+            .substringBefore("<|eot_id|>")
+            .substringBefore("<|end_of_text|>")
+            .substringBefore("<|end|>")
+        return ActionCommand.strip(truncated)
+            .replace(Regex("<\\|[^|]*\\|>"), "")
+            .replace(Regex("<[^>]+>"), "")
+            .replace(Regex("[*#`_~<>]"), "")
+            .replace(Regex("^\\s*[-•]\\s*", RegexOption.MULTILINE), "")
+            .replace(Regex("\\s{2,}"), " ")
+            .replace(Regex("(?i)\\s+(user|usuario|assistant|asistente|asistant)\\s*$"), "")
             .trim()
     }
 

@@ -114,9 +114,9 @@ fun YuliApocalipticaButton(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.Start
             ) {
-                // YULI
+                // JULY
                 Text(
-                    text = "YULI",
+                    text = "JULY",
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Black,
                     fontSize = (buttonHeight.value * 0.32f).sp,
@@ -124,9 +124,9 @@ fun YuliApocalipticaButton(
                     letterSpacing = 5.sp,
                     lineHeight = (buttonHeight.value * 0.34f).sp
                 )
-                // APOCALÍPTICA
+                // SOBREVIVENCIA
                 Text(
-                    text = "APOCALÍPTICA",
+                    text = "SOBREVIVENCIA",
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
                     fontSize = (buttonHeight.value * 0.14f).sp,
