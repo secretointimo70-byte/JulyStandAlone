@@ -1,5 +1,6 @@
 package com.july.offline.security.ui
 
+import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,11 +13,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.july.offline.security.report.ReportFormatter
 import com.july.offline.security.report.SecurityFinding
+import com.july.offline.security.report.SecurityReport
 import com.july.offline.ui.theme.JulyPalette
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -151,12 +157,31 @@ private fun ScanningContent(state: SecurityUiState.Scanning) {
     }
 }
 
+private fun shareReport(context: android.content.Context, report: SecurityReport) {
+    val text = ReportFormatter.format(report)
+    val dir = File(context.cacheDir, "reports").apply { mkdirs() }
+    val file = File(dir, ReportFormatter.filename(report))
+    file.writeText(text)
+    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        putExtra(Intent.EXTRA_SUBJECT, "Informe de Seguridad — July")
+        putExtra(Intent.EXTRA_TEXT, text)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    context.startActivity(Intent.createChooser(intent, "Compartir informe").apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    })
+}
+
 @Composable
 private fun ReportContent(
     state: SecurityUiState.Complete,
     onReset: () -> Unit
 ) {
     val report = state.report
+    val context = LocalContext.current
     val riskColor = when (report.riskLevel) {
         "CRITICAL" -> JulyPalette.Error
         "HIGH"     -> JulyPalette.Warning
@@ -196,9 +221,45 @@ private fun ReportContent(
         }
 
         item {
-            TextButton(onClick = onReset) {
-                Text("nueva auditoría", style = MaterialTheme.typography.labelMedium,
-                    color = JulyPalette.TextSecondary)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = onReset) {
+                    Text(
+                        "nueva auditoría",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = JulyPalette.TextSecondary
+                    )
+                }
+                Surface(
+                    onClick = { shareReport(context, report) },
+                    color = JulyPalette.Dark200,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.border(
+                        0.5.dp,
+                        JulyPalette.ElectricBlueDim.copy(alpha = 0.5f),
+                        RoundedCornerShape(8.dp)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            "⬆",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = JulyPalette.ElectricBlue
+                        )
+                        Text(
+                            "compartir informe",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = JulyPalette.ElectricBlue
+                        )
+                    }
+                }
             }
         }
     }
