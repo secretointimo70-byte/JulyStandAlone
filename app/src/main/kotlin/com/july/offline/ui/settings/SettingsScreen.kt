@@ -4,11 +4,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -172,23 +175,73 @@ fun SettingsScreen(
             JulyDivider()
 
             // Auditoría de seguridad
-            JulySettingRow(
-                label = "auditoría de seguridad",
-                sublabel = "análisis de app · dispositivo · red local"
-            ) {
-                TextButton(onClick = onNavigateToSecurity) {
-                    Text(
-                        text = "abrir →",
-                        color = JulyPalette.Error.copy(alpha = 0.8f),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
-            }
+            SecurityAuditCard(onClick = onNavigateToSecurity)
         }
     }
 }
 
 // ── Subcomponentes de settings ────────────────────────────────────────────
+
+@Composable
+private fun SecurityAuditCard(onClick: () -> Unit) {
+    val shape = RoundedCornerShape(12.dp)
+    Surface(
+        onClick = onClick,
+        color = JulyPalette.Dark100,
+        shape = shape,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .border(
+                width = 0.5.dp,
+                brush = Brush.horizontalGradient(
+                    listOf(
+                        JulyPalette.Error.copy(alpha = 0.6f),
+                        JulyPalette.ElectricBlueDim.copy(alpha = 0.4f)
+                    )
+                ),
+                shape = shape
+            )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(JulyPalette.Error.copy(alpha = 0.8f))
+                    )
+                    Text(
+                        "auditoría de seguridad",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = JulyPalette.TextPrimary
+                    )
+                }
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    "app  ·  dispositivo  ·  red local",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = JulyPalette.TextTertiary
+                )
+            }
+            Text(
+                "→",
+                style = MaterialTheme.typography.titleMedium,
+                color = JulyPalette.Error.copy(alpha = 0.7f)
+            )
+        }
+    }
+}
 
 @Composable
 private fun JulySettingRow(

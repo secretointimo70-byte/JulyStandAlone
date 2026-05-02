@@ -99,22 +99,24 @@ class SecurityModule @Inject constructor(
             val high = findings.filter { it.severity == SecurityFinding.Severity.HIGH }
 
             val prompt = buildString {
-                appendLine("Analiza estos hallazgos de seguridad y genera un resumen con las 3 acciones más urgentes:")
+                appendLine("El diagnóstico de salud de mi dispositivo Android encontró lo siguiente:")
                 if (critical.isNotEmpty()) {
-                    appendLine("CRÍTICOS (${critical.size}):")
+                    appendLine("Problemas críticos (${critical.size}):")
                     critical.forEach { appendLine("- ${it.title}: ${it.description.take(100)}") }
                 }
                 if (high.isNotEmpty()) {
-                    appendLine("ALTOS (${high.size}):")
+                    appendLine("Problemas importantes (${high.size}):")
                     high.forEach { appendLine("- ${it.title}: ${it.description.take(100)}") }
                 }
-                appendLine("Total hallazgos: ${findings.size}")
-                appendLine("Proporciona: nivel de riesgo general y las 3 acciones más urgentes.")
+                appendLine("Total de problemas encontrados: ${findings.size}")
+                appendLine("Por favor resume en 2-3 oraciones el estado general y las mejoras más importantes que debo hacer.")
             }
 
             val systemMsg = Message(
                 id = "security_system", role = MessageRole.SYSTEM,
-                content = "Eres un experto en ciberseguridad. Análisis técnico concreto y accionable. Lenguaje directo."
+                content = "Eres July, un asistente personal que ayuda al usuario a mantener su dispositivo en buen estado. " +
+                    "Cuando el usuario te muestra el diagnóstico de su teléfono, explicas de forma clara y amigable qué necesita mejorar. " +
+                    "Eres útil, directo y positivo."
             )
 
             when (val r = llmEngine.generate(prompt, listOf(systemMsg))) {
